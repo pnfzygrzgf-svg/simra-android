@@ -847,4 +847,3 @@ public class RecorderService extends Service implements SensorEventListener, Loc
         }
     }
 }
-
