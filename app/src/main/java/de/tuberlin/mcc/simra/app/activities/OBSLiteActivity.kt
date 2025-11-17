@@ -548,4 +548,3 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
         }
     }
 }
-
