@@ -62,64 +62,64 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
             if (ACTION_USB_PERMISSION == intent.action) {
 
                 // synchronized(this) {
-                    val device: UsbDevice? =
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            intent.getParcelableExtra(
-                                UsbManager.EXTRA_DEVICE,
-                                UsbDevice::class.java
-                            )
-                        } else {
-                            intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
-                        }
+                val device: UsbDevice? =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(
+                            UsbManager.EXTRA_DEVICE,
+                            UsbDevice::class.java
+                        )
+                    } else {
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    }
 
-                    Log.d(TAG, "device: $device")
-                    Log.d(
-                        TAG,
-                        "UsbManager.EXTRA_PERMISSION_GRANTED: ${
-                            intent.getBooleanExtra(
-                                UsbManager.EXTRA_PERMISSION_GRANTED,
-                                false
-                            )
-                        }"
-                    )
-                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        device?.apply {
-                            usbDevice = device
-                            binding.obsLiteMainView.visibility = View.VISIBLE
-                            binding.loadingAnimationLayout.visibility = View.GONE
-                            obsLiteConnected = true
-                            updateOBSLiteButton()
+                Log.d(TAG, "device: $device")
+                Log.d(
+                    TAG,
+                    "UsbManager.EXTRA_PERMISSION_GRANTED: ${
+                        intent.getBooleanExtra(
+                            UsbManager.EXTRA_PERMISSION_GRANTED,
+                            false
+                        )
+                    }"
+                )
+                if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                    device?.apply {
+                        usbDevice = device
+                        binding.obsLiteMainView.visibility = View.VISIBLE
+                        binding.loadingAnimationLayout.visibility = View.GONE
+                        obsLiteConnected = true
+                        updateOBSLiteButton()
 
-                            val availableDrivers =
-                                UsbSerialProber.getDefaultProber().findAllDrivers(usbManager)
-                            if (availableDrivers.isNotEmpty()) {
-                                val driver = availableDrivers[0]
-                                val connection = usbManager!!.openDevice(driver.device)
-                                port = driver.ports[0] // Most devices have just one port
-                                try {
-                                    port.open(connection)
-                                    port.setParameters(
-                                        115200,
-                                        8,
-                                        UsbSerialPort.STOPBITS_1,
-                                        UsbSerialPort.PARITY_NONE
-                                    )
-                                    Log.d(RecorderService.TAG, "usb serial port opened")
-                                    val usbIoManager =
-                                        SerialInputOutputManager(port, this@OBSLiteActivity)
-                                    // usbIoManager!!.run()
-                                    usbIoManager.start()
-                                } catch (e: IOException) {
-                                    throw RuntimeException(e)
-                                }
-
-
+                        val availableDrivers =
+                            UsbSerialProber.getDefaultProber().findAllDrivers(usbManager)
+                        if (availableDrivers.isNotEmpty()) {
+                            val driver = availableDrivers[0]
+                            val connection = usbManager!!.openDevice(driver.device)
+                            port = driver.ports[0] // Most devices have just one port
+                            try {
+                                port.open(connection)
+                                port.setParameters(
+                                    115200,
+                                    8,
+                                    UsbSerialPort.STOPBITS_1,
+                                    UsbSerialPort.PARITY_NONE
+                                )
+                                Log.d(RecorderService.TAG, "usb serial port opened")
+                                val usbIoManager =
+                                    SerialInputOutputManager(port, this@OBSLiteActivity)
+                                // usbIoManager!!.run()
+                                usbIoManager.start()
+                            } catch (e: IOException) {
+                                throw RuntimeException(e)
                             }
 
+
                         }
-                    } else {
-                        Log.d(TAG, "permission denied for device $device")
+
                     }
+                } else {
+                    Log.d(TAG, "permission denied for device $device")
+                }
                 // }
             }
         }
@@ -285,32 +285,60 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
             // Log.d(TAG, "" + event)
             // event is distance event
             if (event.hasDistanceMeasurement() && event.distanceMeasurement.distance < 5) {
-                // convert distance to cm + handlebar width
-                val distance = ((event.distanceMeasurement.distance * 100) + SharedPref.Settings.Ride.OvertakeWidth.getHandlebarWidth(this)).toInt()
+                // Rohwert (Meter -> cm)
+                val rawDistanceCm = (event.distanceMeasurement.distance * 100).toInt()
                 // left sensor event
                 if (event.distanceMeasurement.sourceId == 1) {
-                    binding.leftSensorTextView.text = this@OBSLiteActivity.getString(R.string.obs_lite_text_last_distance_left,distance)
-                    setColePassBarColor(distance,binding.leftSensorProgressBar)
+                    // Linker Sensor -> linke Lenkerbreite verwenden
+                    val handlebarWidthLeftCm =
+                        SharedPref.Settings.Ride.OvertakeWidth.getHandlebarWidthLeft(this)
+                    val correctedDistanceLeft =
+                        (rawDistanceCm - handlebarWidthLeftCm).coerceAtLeast(0)
+
+                    binding.leftSensorTextView.text = this@OBSLiteActivity.getString(
+                        R.string.obs_lite_text_last_distance_left,
+                        correctedDistanceLeft
+                    )
+                    setColePassBarColor(correctedDistanceLeft, binding.leftSensorProgressBar)
                     val eventTime = event.getTime(0).seconds
                     if (startTime == -1L) {
                         startTime = eventTime
                     }
                     // calculate minimal moving median for when the user presses obs lite button
-                    movingMedian.newValue(distance)
+                    // Moving-Median arbeitet mit bereits korrigiertem Abstand (cm)
+                    movingMedian.newValue(correctedDistanceLeft)
                     // right sensor event
                 } else {
-                    binding.rightSensorTextView.text = this@OBSLiteActivity.getString(R.string.obs_lite_text_last_distance_right,distance)
-                    setColePassBarColor(distance,binding.rightSensorProgressBar)
+                    // Rechter Sensor -> rechte Lenkerbreite verwenden
+                    val handlebarWidthRightCm =
+                        SharedPref.Settings.Ride.OvertakeWidth.getHandlebarWidthRight(this)
+                    val correctedDistanceRight =
+                        (rawDistanceCm - handlebarWidthRightCm).coerceAtLeast(0)
+
+                    binding.rightSensorTextView.text = this@OBSLiteActivity.getString(
+                        R.string.obs_lite_text_last_distance_right,
+                        correctedDistanceRight
+                    )
+                    setColePassBarColor(correctedDistanceRight, binding.rightSensorProgressBar)
                 }
                 // event is user input event
             } else if (event.hasUserInput()) {
+                // Der Median enthält bereits den korrigierten Abstand in cm
                 val dm: DistanceMeasurement = DistanceMeasurement.newBuilder()
-                    .setDistance(movingMedian.median.toFloat()).build()
+                    .setDistance(movingMedian.median.toFloat()) // cm
+                    .build()
 
                 event = event.toBuilder().setDistanceMeasurement(dm).build()
 
-                binding.userInputProgressbarTextView.text = this@OBSLiteActivity.getString(R.string.overtake_distance_left,movingMedian.median)
-                setColePassBarColor(movingMedian.median,binding.leftSensorUserInputProgressBar)
+                binding.userInputProgressbarTextView.text =
+                    this@OBSLiteActivity.getString(
+                        R.string.overtake_distance_left,
+                        movingMedian.median
+                    )
+                setColePassBarColor(
+                    movingMedian.median,
+                    binding.leftSensorUserInputProgressBar
+                )
                 binding.userInputTextView.text =
                     this@OBSLiteActivity.getString(R.string.overtake_press_button) + event
 
@@ -513,7 +541,7 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
                 distanceArray = distanceArray.drop(1) as ArrayList<Int>
             }
             distanceArray.add(distance)
-            // calculate median only if if distanceArray is big enough.
+            // calculate median only if distanceArray is big enough.
             if (distanceArray.size >= windowSize) {
                 median = findMedian(distanceArray, windowSize).minOrNull()!!
             }
