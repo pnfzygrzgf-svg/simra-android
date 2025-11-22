@@ -36,7 +36,6 @@ import java.util.TreeSet
 import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.ConcurrentLinkedQueue
 
-
 class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
     private lateinit var binding: ActivityObsliteBinding
     private val TAG = "OBSLiteActivity_LOG"
@@ -112,10 +111,7 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
                             } catch (e: IOException) {
                                 throw RuntimeException(e)
                             }
-
-
                         }
-
                     }
                 } else {
                     Log.d(TAG, "permission denied for device $device")
@@ -123,7 +119,6 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
                 // }
             }
         }
-
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -141,7 +136,10 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
         binding.handleBarWidthLeft.value =
             SharedPref.Settings.Ride.OvertakeWidth.getHandlebarWidthLeft(this)
         binding.handleBarWidthLeft.setOnValueChangedListener { picker, oldVal, newVal ->
-            SharedPref.Settings.Ride.OvertakeWidth.setTotalWidthThroughHandlebarWidthLeft(newVal, this)
+            SharedPref.Settings.Ride.OvertakeWidth.setTotalWidthThroughHandlebarWidthLeft(
+                newVal,
+                this
+            )
         }
         // right
         binding.handleBarWidthRight.maxValue = 60
@@ -149,7 +147,10 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
         binding.handleBarWidthRight.value =
             SharedPref.Settings.Ride.OvertakeWidth.getHandlebarWidthRight(this)
         binding.handleBarWidthRight.setOnValueChangedListener { picker, oldVal, newVal ->
-            SharedPref.Settings.Ride.OvertakeWidth.setTotalWidthThroughHandlebarWidthRight(newVal, this)
+            SharedPref.Settings.Ride.OvertakeWidth.setTotalWidthThroughHandlebarWidthRight(
+                newVal,
+                this
+            )
         }
 
         // OBS-Lite
@@ -157,11 +158,14 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
 
         usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
         val explicitIntent = Intent(ACTION_USB_PERMISSION)
-        explicitIntent.setPackage(this.packageName);
+        explicitIntent.setPackage(this.packageName)
 
-
-        permissionIntent = PendingIntent.getBroadcast(this, 0, explicitIntent,
-            PendingIntent.FLAG_MUTABLE)
+        permissionIntent = PendingIntent.getBroadcast(
+            this,
+            0,
+            explicitIntent,
+            PendingIntent.FLAG_MUTABLE
+        )
         val filter = IntentFilter(ACTION_USB_PERMISSION)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             this.registerReceiver(usbReceiver, filter, RECEIVER_EXPORTED)
@@ -170,18 +174,16 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
         }
         updateOBSLiteButton()
         val obsLiteUrl = SharedPref.Settings.OBSLite.getObsLiteURL(this)
-        binding.obsLiteURL.setText(obsLiteUrl,TextView.BufferType.EDITABLE)
+        binding.obsLiteURL.setText(obsLiteUrl, TextView.BufferType.EDITABLE)
 
         val obsUsername = SharedPref.Settings.OBSLite.getObsLiteUsername(this)
-        binding.obsLiteUsername.setText(obsUsername,TextView.BufferType.EDITABLE)
+        binding.obsLiteUsername.setText(obsUsername, TextView.BufferType.EDITABLE)
 
         val obsLiteAPIKey = SharedPref.Settings.OBSLite.getObsLiteAPIKey(this)
-        binding.obsLiteAPIKey.setText(obsLiteAPIKey,TextView.BufferType.EDITABLE)
-
+        binding.obsLiteAPIKey.setText(obsLiteAPIKey, TextView.BufferType.EDITABLE)
     }
 
     private fun getOBSLitePermission() {
-
         val deviceList = usbManager?.getDeviceList()
         deviceList?.values?.forEach { device ->
             Log.d(TAG, "deviceList device $device")
@@ -189,7 +191,6 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
         }
 
         usbManager?.requestPermission(usbDevice, permissionIntent)
-
     }
 
     private fun disconnectOBSLite() {
@@ -205,21 +206,20 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
         }
     }
 
-
     override fun onResume() {
         super.onResume()
     }
 
     override fun onPause() {
         super.onPause()
-        val obsLiteUrl = binding.obsLiteURL.getText()
-        SharedPref.Settings.OBSLite.setObsLiteURL(obsLiteUrl.toString(),this)
+        val obsLiteUrl = binding.obsLiteURL.text
+        SharedPref.Settings.OBSLite.setObsLiteURL(obsLiteUrl.toString(), this)
 
-        val obsLiteUsername = binding.obsLiteUsername.getText()
-        SharedPref.Settings.OBSLite.setObsLiteUsername(obsLiteUsername.toString(),this)
+        val obsLiteUsername = binding.obsLiteUsername.text
+        SharedPref.Settings.OBSLite.setObsLiteUsername(obsLiteUsername.toString(), this)
 
-        val obsLiteAPIKey = binding.obsLiteAPIKey.getText()
-        SharedPref.Settings.OBSLite.setObsLiteAPIKey(obsLiteAPIKey.toString(),this)
+        val obsLiteAPIKey = binding.obsLiteAPIKey.text
+        SharedPref.Settings.OBSLite.setObsLiteAPIKey(obsLiteAPIKey.toString(), this)
     }
 
     override fun onDestroy() {
@@ -249,7 +249,6 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
     }
 
     @OptIn(ExperimentalStdlibApi::class)
-
     /** OBS-Lite related **/
 
     // Called when new data from usb is read
@@ -266,7 +265,6 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
                 handleEvent()
             }
         }
-
     }
 
     // handles distance event and user input events of obs lite
@@ -304,7 +302,7 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
                     if (startTime == -1L) {
                         startTime = eventTime
                     }
-                    // calculate minimal moving median for when the user presses obs lite button
+                    // calculate median for when the user presses obs lite button
                     // Moving-Median arbeitet mit bereits korrigiertem Abstand (cm)
                     movingMedian.newValue(correctedDistanceLeft)
                     // right sensor event
@@ -341,7 +339,6 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
                 )
                 binding.userInputTextView.text =
                     this@OBSLiteActivity.getString(R.string.overtake_press_button) + event
-
             }
         } catch (_: InvalidProtocolBufferException) {
         }
@@ -378,11 +375,10 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
     // handles the byteListQueues, which contain the COBS packages
     private fun fillByteList(data: ByteArray?) {
         for (datum in data!!) {
-            if (lastByteRead?.toInt() == 0x00){ // start new COBS package when last byte was 00
+            if (lastByteRead?.toInt() == 0x00) { // start new COBS package when last byte was 00
                 val newByteList = LinkedList<Byte>()
                 newByteList.add(datum)
                 byteListQueue.add(newByteList)
-
             } else { // COBS package is not completed yet, continue the same package
                 if (byteListQueue.isNotEmpty()) {
                     byteListQueue.last.add(datum)
@@ -403,7 +399,8 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
     private fun updateOBSLiteButton() {
         runOnUiThread {
             if (obsLiteConnected) {
-                binding.usbButton.text = getString(R.string.obs_activity_button_disconnect_device)
+                binding.usbButton.text =
+                    getString(R.string.obs_activity_button_disconnect_device)
                 binding.usbButton.setOnClickListener {
                     disconnectOBSLite()
                 }
@@ -414,7 +411,6 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
                 }
             }
         }
-
     }
 
     /**
@@ -426,9 +422,9 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
         var distanceArray: ArrayList<Int> = ArrayList()
         var windowSize = 3
         var median = 0
+
         // Pair class for the value and its index
-        class Pair // Constructor
-            (private var value: Int, private var index: Int) : Comparable<Pair?> {
+        class Pair(private var value: Int, private var index: Int) : Comparable<Pair?> {
             // This method will be used by the treeset to search a value by index and setting the tree nodes (left or right)
             override fun compareTo(other: Pair?): Int {
 
@@ -459,7 +455,6 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
             }
         }
 
-
         // Function to print the median for the current window
         fun printMedian(minSet: TreeSet<Pair?>, maxSet: TreeSet<Pair?>, window: Int): Int {
 
@@ -467,7 +462,8 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
             return if (window % 2 == 0) {
                 (((minSet.last()!!.value() + maxSet.first()!!.value()) / 2.0).toInt())
             } else {
-                (if (minSet.size > maxSet.size) minSet.last()!!.value() else maxSet.first()!!.value())
+                (if (minSet.size > maxSet.size) minSet.last()!!.value() else maxSet.first()!!
+                    .value())
             }
         }
 
@@ -543,7 +539,9 @@ class OBSLiteActivity : BaseActivity(), SerialInputOutputManager.Listener {
             distanceArray.add(distance)
             // calculate median only if distanceArray is big enough.
             if (distanceArray.size >= windowSize) {
-                median = findMedian(distanceArray, windowSize).minOrNull()!!
+                val medians = findMedian(distanceArray, windowSize)
+                // Statt globalem Minimum: Median des letzten Fensters verwenden
+                median = medians.last()
             }
         }
     }
